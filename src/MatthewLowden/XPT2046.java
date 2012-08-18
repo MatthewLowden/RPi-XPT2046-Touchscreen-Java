@@ -88,28 +88,33 @@ public class XPT2046 {
 
 		_SPIManager.SPISelect();
 		_SPIManager.SPISend(request);
-		byte[] responseData = _SPIManager.SPIReceive(2);
-		_SPIManager.SPIUnSelect();
-
+		
+		// Skip the 'busy' bit.
+		_SPIManager.SPIPulseClock();
+		
 		int retValue = 0;
 
 		if (_ConversionSelect == ConversionSelect._12_BIT) {
-			// 12 Bit conversion (bit pattern: 0XXXXXXX XXXXX000)
-			retValue = responseData[0] << 5;
-			int retValueLowBits = responseData[1];
-			if (retValueLowBits < 0)
-				retValueLowBits += 256;
-			retValueLowBits >>= 3;
-			retValue |= retValueLowBits;
+			// 12 Bit conversion (bit pattern: XXXXXXXX XXXX0000)
+			byte[] responseData = _SPIManager.SPIReceive(12);
+			retValue = intFromUnsignedByte(responseData[0]) << 4;
+			retValue |= intFromUnsignedByte(responseData[1]) >> 4;
 		} else {
 			// 8 Bit Conversion (bit pattern: 0XXXXXXX X0000000)
-			retValue = responseData[0] << 1;
-			if (0 != responseData[1]) {
-				retValue += 1;
-			}
+			byte[] responseData = _SPIManager.SPIReceive(8);
+			retValue = intFromUnsignedByte(responseData[0]);
 		}
-
+		
+		_SPIManager.SPIUnSelect();
 		return retValue;
+	}
+	
+	private int intFromUnsignedByte(byte input)
+	{
+		int ret = input;
+		if (ret <0)
+			ret += 256;
+		return ret;
 	}
 
 	private byte makeControlByte(ChannelSelect channelSelect) {

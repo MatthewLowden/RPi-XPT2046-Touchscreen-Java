@@ -49,49 +49,71 @@ public class SPIManager {
 		// Bring the select line high.
 		gpio.setValue(SPI_CE0, true);
 	}
+	
+	public void SPIPulseClock() {
+		gpio.setValue(SPI_SCLK, true);
+		gpio.setValue(SPI_SCLK, false);
+	}
 
 	public void SPISend(byte[] data) {
 		if (null == gpio)
 			setUpGPIO();
 
 		// Send MSB->LSB order.
+		
+		boolean currentMOSIstate = false;
 
 		for (int i = 0; i < data.length; i++) {
 			byte byteToSend = data[i];
 			for (int j = 0; j < 8; j++) {
 
-				if ((byteToSend & 0x80) > 0) {
+				boolean desiredState = false;
+				if ((byteToSend & 0x80) > 0)
+					desiredState = true;
+				
+				if (desiredState == true && currentMOSIstate == false) {
 					gpio.setValue(SPI_MOSI, true);
-				} else {
+					currentMOSIstate = true;
+				} else if (desiredState == false && currentMOSIstate == true) {
 					gpio.setValue(SPI_MOSI, false);
+					currentMOSIstate = false;
 				}
-
+				
 				// Pulse the clock.
-
-				gpio.setValue(SPI_SCLK, true);
-				gpio.setValue(SPI_SCLK, false);
+				SPIPulseClock();
 
 				// Shift to the next bit.
-
 				byteToSend <<= 1;
 			}
 		}
+		if (currentMOSIstate == true)
+		{
+			gpio.setValue(SPI_MOSI, false);
+		}
 	}
 
-	public byte[] SPIReceive(int numBytes) {
+	public byte[] SPIReceive(int numBits) {
 		if (null == gpio)
 			setUpGPIO();
+		
+		int numBytes = (numBits + 7) / 8;
 
 		byte[] buffer = new byte[numBytes];
 
 		// Array is filled in received byte order.
+		// Any padding bits are the least significant bits, of the last byte.
 
+		int currentBit = 0;
 		for (int i = 0; i < numBytes; i++) {
 			byte receiveByte = 0x00;
 			for (int j = 0; j < 8; j++) {
-
 				// Shift to the next bit.
 				receiveByte <<= 1;
+
+				// Skip padding bits
+				currentBit++;				
+				if (currentBit > numBits)
+					continue;
 
 				// Set the clock high.
 				gpio.setValue(SPI_SCLK, true);
@@ -106,6 +128,7 @@ public class SPIManager {
 				if (bit) {
 					receiveByte |= 1;
 				}
+				
 			}
 			buffer[i] = receiveByte;
 		}
