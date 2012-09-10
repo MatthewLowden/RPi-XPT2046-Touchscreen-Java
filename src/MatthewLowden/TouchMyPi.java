@@ -21,7 +21,7 @@ public class TouchMyPi {
 
 	// This Java implementation is of little practical use as the SPI clock
 	// frequency achieved with this method is 20-40 Hz, and so it takes
-	// approximately 10s to execute each loop (reading all values).
+	// approximately 7-8s to execute each loop (reading all values).
 
 	// The XPT2046 touch screen controller should be able to work with an SPI
 	// clock up to 2MHz.
